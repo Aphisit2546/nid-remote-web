@@ -1,37 +1,77 @@
-import api from './axiosInstance';
+// AuthService - ใช้ API Proxy ผ่าน Next.js เพื่อ bypass CORS
 
 export const AuthService = {
     // 1. ส่ง OTP
     sendOTP: async (phone_number: string) => {
-        // API: sendOTP
-        const response = await api.post('/sendOTP', { phone_number });
-        return response.data;
+        const response = await fetch('/api/auth/sendOTP', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ phone_number }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to send OTP');
+        }
+
+        return response.json();
     },
 
     // 2. ยืนยัน OTP
-    verifyOTP: async (phone_number: string, otp_code: string) => {
-        // API: verifyOTP (สมมติว่าส่ง phone + code)
-        const response = await api.post('/verifyOTP', {
-            phone_number,
-            otp_code
+    verifyOTP: async (phone_number: string, otp_code: string, ref_code: string) => {
+        const response = await fetch('/api/auth/verifyOTP', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ phone_number, otp_code, ref_code }),
         });
-        return response.data; // ควร return { token: '...' } กลับมา
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || data.message || 'Failed to verify OTP');
+        }
+
+        return data;
     },
 
-    // 3. ดึงข้อมูล User (ต้องส่ง phone_number ตามโจทย์)
+    // 3. ดึงข้อมูล User
     getUserData: async (phone_number: string) => {
-        // API: getUserData
-        // หมายเหตุ: ส่วนใหญ่ GET จะส่ง params แต่ถ้า API บังคับ Body ให้เปลี่ยนเป็น .post
-        const response = await api.post('/getUserData', { phone_number });
-        return response.data;
+        const token = localStorage.getItem('nid_token');
+
+        const response = await fetch('/api/auth/getUserData', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+            body: JSON.stringify({ phone_number }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to get user data');
+        }
+
+        return response.json();
     },
 
-    // 4. Logout (ต้องส่ง phone_number ตามโจทย์)
+    // 4. Logout
     logout: async (phone_number: string) => {
+        const token = localStorage.getItem('nid_token');
+
         try {
-            await api.post('/logout', { phone_number });
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token && { 'Authorization': `Bearer ${token}` }),
+                },
+                body: JSON.stringify({ phone_number }),
+            });
         } catch (error) {
-            console.error('Logout error', error);
+            // Silent fail for logout
         }
     }
 };

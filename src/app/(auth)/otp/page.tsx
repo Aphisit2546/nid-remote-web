@@ -14,13 +14,14 @@ import logo from '@/image/Logo.png';
 export default function OTPPage() {
     const router = useRouter();
     const phoneNumber = useAuthStore((state) => state.phoneNumber);
+    const refCode = useAuthStore((state) => state.refCode);
     const setToken = useAuthStore((state) => state.setToken);
 
     // OTP 6 หลัก
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const [countdown, setCountdown] = useState(88);
-    const [isLoading, setIsLoading] = useState(false); // 2. เพิ่ม Loading State
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         // ถ้าไม่มีเบอร์โทร (Refresh หน้า) ให้กลับไป Login
@@ -64,22 +65,22 @@ export default function OTPPage() {
         }
     };
 
-    // 3. ฟังก์ชัน Verify OTP กับ API จริง
+    // ฟังก์ชัน Verify OTP กับ API จริง
     const verifyOTP = async (code: string) => {
-        if (isLoading) return; // ป้องกันการเรียกซ้ำ
+        if (isLoading) return;
 
         try {
-            setIsLoading(true); // เริ่มโหลด
+            setIsLoading(true);
 
-            // เรียก API (ส่งเบอร์โทรและรหัส OTP)
-            const response = await AuthService.verifyOTP(phoneNumber, code);
+            // เรียก API - ส่ง phone_number, otp_code และ ref_code
+            const response = await AuthService.verifyOTP(phoneNumber, code, refCode || '');
 
-            // เช็คว่ามี Token กลับมาไหม (โครงสร้างขึ้นอยู่กับ API จริง ส่วนใหญ่จะอยู่ใน response.token หรือ response.data.token)
-            const token = response.token || response.data?.token;
+            // เช็คว่ามี Token กลับมาไหม
+            const token = response.token || response.data?.token || response.messages?.token;
 
             if (token) {
-                setToken(token); // เก็บ Token
-                router.push('/dashboard'); // ไปหน้า Dashboard
+                setToken(token);
+                router.push('/dashboard');
             } else {
                 throw new Error('ไม่ได้รับ Token จากระบบ');
             }
@@ -92,7 +93,7 @@ export default function OTPPage() {
             setOtp(['', '', '', '', '', '']);
             inputRefs.current[0]?.focus();
         } finally {
-            setIsLoading(false); // หยุดโหลด
+            setIsLoading(false);
         }
     };
 

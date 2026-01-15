@@ -13,8 +13,9 @@ import logo from '@/image/Logo.png';
 export default function LoginPage() {
     const router = useRouter();
     const setPhoneNumber = useAuthStore((state) => state.setPhoneNumber);
+    const setRefCode = useAuthStore((state) => state.setRefCode);
     const [inputPhone, setInputPhone] = useState('');
-    const [isLoading, setIsLoading] = useState(false); // เพิ่ม State Loading เพื่อกันกดซ้ำ
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -26,22 +27,25 @@ export default function LoginPage() {
         }
 
         try {
-            setIsLoading(true); // เริ่มโหลด
+            setIsLoading(true);
 
-            // 1. เรียก API ส่ง OTP จริง
-            // (ต้องมั่นใจว่าไฟล์ src/services/auth.service.ts สร้างเสร็จแล้วตามขั้นตอนก่อนหน้า)
-            await AuthService.sendOTP(inputPhone);
+            // 1. เรียก API ส่ง OTP
+            const response = await AuthService.sendOTP(inputPhone);
 
-            // 2. ถ้า API ผ่าน ให้เก็บเบอร์ลง Store แล้วไปหน้าถัดไป
+            // 2. เก็บ ref_code จาก response
+            if (response.messages?.ref_code) {
+                setRefCode(response.messages.ref_code);
+            }
+
+            // 3. เก็บเบอร์ลง Store แล้วไปหน้า OTP
             setPhoneNumber(inputPhone);
             router.push('/otp');
 
         } catch (error) {
             console.error('Login Error:', error);
-            // แจ้งเตือนเมื่อส่ง OTP ไม่ผ่าน
             alert('ไม่สามารถส่ง OTP ได้ กรุณาตรวจสอบเบอร์โทรศัพท์ หรือการเชื่อมต่อ Server');
         } finally {
-            setIsLoading(false); // หยุดโหลด
+            setIsLoading(false);
         }
     };
 

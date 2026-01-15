@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NID Remote Office
 
-## Getting Started
+ระบบควบคุมประตูม้วนเหล็กระยะไกล (Remote Rolling Shutter Door Control)
 
-First, run the development server:
+## 🚀 Features
+
+- **OTP Authentication** - ยืนยันตัวตนผ่าน OTP
+- **Door Control** - เปิด/หยุด/ปิด ประตูระยะไกล
+- **CCTV Monitor** - ดูกล้องวงจรปิด
+- **Usage History** - ประวัติการใช้งานระบบและประตู
+- **User Profile** - ข้อมูลผู้ใช้งาน
+
+## 📦 Tech Stack
+
+- **Framework:** Next.js 16
+- **State Management:** Zustand
+- **Styling:** Inline CSS
+- **Icons:** Lucide React
+
+## ⚙️ Installation
 
 ```bash
+# Clone repository
+git clone <your-repo-url>
+cd nid-remote-web
+
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🔐 Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create `.env.local` file:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+NEXT_PUBLIC_API_URL=xxxxxxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_CCTV_URL=xxxxxxxxxxxxxxxxxxxxxxxxx
+NEXT_PUBLIC_APP_NAME="NID Remote Office"
+```
 
-## Learn More
+## 📁 Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/
+│   ├── (auth)/           # Auth pages (login, otp)
+│   ├── api/              # API proxy routes
+│   │   ├── auth/         # sendOTP, verifyOTP, getUserData, logout
+│   │   └── door/         # openDoor, closeDoor, stopDoor
+│   ├── dashboard/        # Main dashboard
+│   ├── history/          # Usage history pages
+│   └── profile/          # User profile
+├── components/
+│   ├── dashboard/        # Dashboard components
+│   └── ui/               # UI components (Sidebar)
+├── services/             # API services
+├── store/                # Zustand stores
+└── hooks/                # Custom hooks
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🔌 API Endpoints
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth/sendOTP` | POST | ส่ง OTP |
+| `/api/auth/verifyOTP` | POST | ยืนยัน OTP |
+| `/api/auth/getUserData` | POST | ดึงข้อมูล User |
+| `/api/auth/logout` | POST | ออกจากระบบ |
+| `/api/door/openDoor` | POST | เปิดประตู |
+| `/api/door/closeDoor` | POST | ปิดประตู |
+| `/api/door/stopDoor` | POST | หยุดประตู |
 
-## Deploy on Vercel
+## 🚀 Deploy to Render
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Push code to GitHub/GitLab
+2. Connect repository to Render
+3. Set build command: `npm run build`
+4. Set start command: `npm start`
+5. Add environment variables
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📝 License
+
+Private - NID Progress Technology

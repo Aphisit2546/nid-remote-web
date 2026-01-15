@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Menu } from 'lucide-react';
 import Sidebar from '@/components/ui/Sidebar';
 import { useAuthStore } from '@/store/useAuthStore';
+import { AuthService } from '@/services/auth.service';
 
 // Assets
 import desktopBg from '@/image/DesktopBG.png';
@@ -22,11 +23,13 @@ interface UserData {
 export default function ProfilePage() {
     const router = useRouter();
     const token = useAuthStore((state) => state.token);
+    const phoneNumber = useAuthStore((state) => state.phoneNumber);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // User data - ว่างเปล่าจนกว่าจะดึงข้อมูลจาก API
     const [userData, setUserData] = useState<UserData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!token) {
@@ -34,10 +37,33 @@ export default function ProfilePage() {
             return;
         }
 
-        // TODO: ดึงข้อมูลจาก getUserData API
-        // สำหรับตอนนี้จะแสดง placeholder
-        setIsLoading(false);
-    }, [token, router]);
+        // ดึงข้อมูลจาก getUserData API
+        const fetchUserData = async () => {
+            try {
+                setIsLoading(true);
+                setError(null);
+
+                const response = await AuthService.getUserData(phoneNumber);
+
+                // ดึงข้อมูลจาก response.messages.user
+                const user = response.messages?.user || response.data?.user || response;
+
+                setUserData({
+                    name: user.name || '-',
+                    email: user.email || '-',
+                    position: user.position || user.role || '-',
+                    phone: user.phone || phoneNumber || '-'
+                });
+            } catch (err) {
+                console.error('Fetch user data error:', err);
+                setError('ไม่สามารถดึงข้อมูลได้');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchUserData();
+    }, [token, phoneNumber, router]);
 
     return (
         <div style={{
