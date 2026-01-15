@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/useAuthStore';
 import { ChevronLeft } from 'lucide-react';
+import { AuthService } from '@/services/auth.service'; // 1. Import Service
 
 // Assets
 import desktopBg from '@/image/DesktopBG.png';
@@ -19,8 +20,10 @@ export default function OTPPage() {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const [countdown, setCountdown] = useState(88);
+    const [isLoading, setIsLoading] = useState(false); // 2. เพิ่ม Loading State
 
     useEffect(() => {
+        // ถ้าไม่มีเบอร์โทร (Refresh หน้า) ให้กลับไป Login
         if (!phoneNumber) router.push('/login');
     }, [phoneNumber, router]);
 
@@ -49,7 +52,8 @@ export default function OTPPage() {
         }
 
         const fullOtp = newOtp.join('');
-        if (fullOtp.length === 6 && index === 5 && value) {
+        // ถ้ากรอกครบ 6 หลัก และไม่ได้กำลังโหลดอยู่ ให้ Verify ทันที
+        if (fullOtp.length === 6 && index === 5 && value && !isLoading) {
             verifyOTP(fullOtp);
         }
     };
@@ -60,16 +64,35 @@ export default function OTPPage() {
         }
     };
 
+    // 3. ฟังก์ชัน Verify OTP กับ API จริง
     const verifyOTP = async (code: string) => {
-        console.log('Verifying OTP:', code);
+        if (isLoading) return; // ป้องกันการเรียกซ้ำ
 
-        if (code === '123456') {
-            setToken('mock-jwt-token-123456');
-            router.push('/dashboard');
-        } else {
-            alert('รหัส OTP ไม่ถูกต้อง (ลองใช้ 123456)');
+        try {
+            setIsLoading(true); // เริ่มโหลด
+
+            // เรียก API (ส่งเบอร์โทรและรหัส OTP)
+            const response = await AuthService.verifyOTP(phoneNumber, code);
+
+            // เช็คว่ามี Token กลับมาไหม (โครงสร้างขึ้นอยู่กับ API จริง ส่วนใหญ่จะอยู่ใน response.token หรือ response.data.token)
+            const token = response.token || response.data?.token;
+
+            if (token) {
+                setToken(token); // เก็บ Token
+                router.push('/dashboard'); // ไปหน้า Dashboard
+            } else {
+                throw new Error('ไม่ได้รับ Token จากระบบ');
+            }
+
+        } catch (error) {
+            console.error('Verify OTP Error:', error);
+            alert('รหัส OTP ไม่ถูกต้อง หรือหมดอายุ กรุณาลองใหม่');
+
+            // เคลียร์ค่าเพื่อให้กรอกใหม่
             setOtp(['', '', '', '', '', '']);
             inputRefs.current[0]?.focus();
+        } finally {
+            setIsLoading(false); // หยุดโหลด
         }
     };
 
@@ -107,7 +130,7 @@ export default function OTPPage() {
 
                 {/* Back Button */}
                 <button
-                    onClick={() => router.back()}
+                    onClick={() => !isLoading && router.back()} // ห้ามกดกลับตอนโหลด
                     style={{
                         position: 'absolute',
                         top: '1rem',
@@ -116,11 +139,13 @@ export default function OTPPage() {
                         backgroundColor: 'rgba(255, 255, 255, 0.3)',
                         borderRadius: '0.75rem',
                         border: 'none',
-                        cursor: 'pointer',
+                        cursor: isLoading ? 'not-allowed' : 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        opacity: isLoading ? 0.5 : 1
                     }}
+                    disabled={isLoading}
                     suppressHydrationWarning
                 >
                     <ChevronLeft style={{ width: '1.5rem', height: '1.5rem', color: '#1e3a5f' }} />
@@ -156,7 +181,7 @@ export default function OTPPage() {
                         marginBottom: '0.5rem',
                         margin: 0
                     }}>
-                        ยืนยันรหัส OTP
+                        {isLoading ? 'กำลังตรวจสอบ...' : 'ยืนยันรหัส OTP'}
                     </h2>
                     <p style={{
                         color: 'rgba(0, 0, 0, 0.7)',
@@ -187,20 +212,22 @@ export default function OTPPage() {
                             value={digit}
                             onChange={(e) => handleChange(index, e.target.value)}
                             onKeyDown={(e) => handleKeyDown(index, e)}
+                            disabled={isLoading} // ล็อคช่องเมื่อกำลังโหลด
                             style={{
                                 flex: 1,
                                 minWidth: 0,
                                 maxWidth: '2.8rem',
                                 height: '2.8rem',
                                 border: '2px solid rgba(59, 130, 246, 0.5)',
-                                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                                backgroundColor: isLoading ? '#f3f4f6' : 'rgba(255, 255, 255, 0.95)',
                                 borderRadius: '0.6rem',
                                 textAlign: 'center',
                                 fontSize: '1.25rem',
                                 fontWeight: 'bold',
                                 color: '#1f2937',
                                 outline: 'none',
-                                boxSizing: 'border-box'
+                                boxSizing: 'border-box',
+                                opacity: isLoading ? 0.7 : 1
                             }}
                             suppressHydrationWarning
                         />

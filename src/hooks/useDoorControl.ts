@@ -1,20 +1,18 @@
-import { useRef, useEffect, useCallback } from 'react';
-import { useDoorStore, DoorStatus } from '@/store/useDoorStore';
+import { useRef, useState, useCallback, useEffect } from 'react';
+import { useDoorStore } from '@/store/useDoorStore';
+import { DoorService } from '@/services/door.service';
 
-// Config เวลา (วินาที)
-const DURATION_OPEN = 46;
-const DURATION_CLOSE = 44;
-
-// ความถี่ในการอัปเดต (ms) - ยิ่งน้อยยิ่งลื่น แต่กิน CPU
-const TICK_RATE = 100;
+// ✅ Config เวลาตามโจทย์เป๊ะๆ
+const DURATION_OPEN = 46;  // 0 -> 100 ใช้ 46 วินาที
+const DURATION_CLOSE = 44; // 100 -> 0 ใช้ 44 วินาที
+const TICK_RATE = 100;     // อัปเดตทุก 0.1 วินาที
 
 export const useDoorControl = () => {
     const { status, percentage, setStatus, setPercentage } = useDoorStore();
-
-    // ใช้ Ref เพื่อเก็บ Interval ID (ตัวนับเวลา)
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
-    // ฟังก์ชันเคลียร์ตัวนับเวลา (หยุดคำนวณ)
+    // ฟังก์ชันช่วยเคลียร์ Timer
     const clearTimer = useCallback(() => {
         if (timerRef.current) {
             clearInterval(timerRef.current);
@@ -22,70 +20,103 @@ export const useDoorControl = () => {
         }
     }, []);
 
-    // 1. Logic สั่งเปิดประตู (OPEN)
-    const openDoor = useCallback(() => {
-        if (status === 'OPEN' || status === 'OPENING') return; // กันกดซ้ำ
+    // ----------------------------------------------------
+    // 1. OPEN LOGIC
+    // ----------------------------------------------------
+    const openDoor = useCallback(async () => {
+        // ✅ กฏเหล็ก:
+        // 1. ห้ามกดถ้ากำลังโหลด
+        // 2. ห้ามกดถ้าเปิดสุดแล้ว (OPEN)
+        // 3. ห้ามกดถ้าประตูกำลังเลื่อนไม่ว่าทิศทางไหน (OPENING หรือ CLOSING) -> ต้องกด STOP ก่อน
+        if (isLoading || status === 'OPEN' || status === 'OPENING' || status === 'CLOSING') return;
 
-        setStatus('OPENING');
-        clearTimer();
+        try {
+            setIsLoading(true);
+            await DoorService.openDoor(); // ยิง API
 
-        // คำนวณ: ต้องเพิ่มทีละกี่ % ถึงจะครบ 100 ใน 46 วิ
-        // สูตร: (100% / 46วิ) * (0.1วิ คือ Tick Rate)
-        const step = (100 / DURATION_OPEN) * (TICK_RATE / 1000);
+            setStatus('OPENING');
+            clearTimer();
 
-        timerRef.current = setInterval(() => {
-            setPercentage((prev) => {
-                const next = prev + step;
-                if (next >= 100) {
-                    clearTimer();
-                    setStatus('OPEN'); // ถึงเป้าหมาย
-                    return 100;
-                }
-                return next;
-            });
-        }, TICK_RATE);
-    }, [status, setStatus, setPercentage, clearTimer]);
+            // สูตรคำนวณ Step: (100% / 46วิ) * 0.1วิ
+            const step = (100 / DURATION_OPEN) * (TICK_RATE / 1000);
 
-    // 2. Logic สั่งปิดประตู (CLOSE)
-    const closeDoor = useCallback(() => {
-        if (status === 'CLOSED' || status === 'CLOSING') return; // กันกดซ้ำ
+            timerRef.current = setInterval(() => {
+                setPercentage((prev) => {
+                    const next = prev + step;
+                    if (next >= 100) {
+                        clearTimer();
+                        setStatus('OPEN'); // ถึง 100% คือ FULLY OPEN
+                        return 100;
+                    }
+                    return next;
+                });
+            }, TICK_RATE);
 
-        setStatus('CLOSING');
-        clearTimer();
+        } catch (error) {
+            console.error(error);
+            alert('Error connecting to server');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [status, isLoading, setStatus, setPercentage, clearTimer]);
 
-        // คำนวณ: ต้องลดทีละกี่ % ถึงจะเหลือ 0 ใน 44 วิ
-        const step = (100 / DURATION_CLOSE) * (TICK_RATE / 1000);
+    // ----------------------------------------------------
+    // 2. CLOSE LOGIC
+    // ----------------------------------------------------
+    const closeDoor = useCallback(async () => {
+        // ✅ กฏเหล็กเดียวกัน: ถ้ากำลังเลื่อน (ไม่ว่าทางไหน) ห้ามกด ต้อง STOP ก่อน
+        if (isLoading || status === 'CLOSED' || status === 'CLOSING' || status === 'OPENING') return;
 
-        timerRef.current = setInterval(() => {
-            setPercentage((prev) => {
-                const next = prev - step;
-                if (next <= 0) {
-                    clearTimer();
-                    setStatus('CLOSED'); // ถึงเป้าหมาย
-                    return 0;
-                }
-                return next;
-            });
-        }, TICK_RATE);
-    }, [status, setStatus, setPercentage, clearTimer]);
+        try {
+            setIsLoading(true);
+            await DoorService.closeDoor();
 
-    // 3. Logic สั่งหยุด (STOP)
-    const stopDoor = useCallback(() => {
-        clearTimer();
-        setStatus('STOPPED');
-        // เปอร์เซ็นต์ค้างที่เท่าไหร่ ก็อยู่ที่เดิม
+            setStatus('CLOSING');
+            clearTimer();
+
+            // สูตรคำนวณ Step: (100% / 44วิ) * 0.1วิ (เร็วกว่าตอนเปิดนิดนึง)
+            const step = (100 / DURATION_CLOSE) * (TICK_RATE / 1000);
+
+            timerRef.current = setInterval(() => {
+                setPercentage((prev) => {
+                    const next = prev - step;
+                    if (next <= 0) {
+                        clearTimer();
+                        setStatus('CLOSED'); // ถึง 0% คือ FULLY CLOSED
+                        return 0;
+                    }
+                    return next;
+                });
+            }, TICK_RATE);
+
+        } catch (error) {
+            console.error(error);
+            alert('Error connecting to server');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [status, isLoading, setStatus, setPercentage, clearTimer]);
+
+    // ----------------------------------------------------
+    // 3. STOP LOGIC
+    // ----------------------------------------------------
+    const stopDoor = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            await DoorService.stopDoor();
+
+            clearTimer();
+            setStatus('STOPPED'); // ✅ หยุดแล้ว สถานะเป็น STOPPED (กด Open/Close ต่อได้)
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
+        }
     }, [clearTimer, setStatus]);
 
-    // Cleanup: ถ้า Component ถูกทำลาย ให้หยุด Loop ทันที (กัน Memory Leak)
     useEffect(() => {
         return () => clearTimer();
     }, [clearTimer]);
 
-    return {
-        status,
-        percentage,
-        openDoor,
-        closeDoor,
-        stopDoor,
-    };
+    return { status, percentage, isLoading, openDoor, closeDoor, stopDoor };
 };

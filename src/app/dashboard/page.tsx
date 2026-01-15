@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useDoorControl } from '@/hooks/useDoorControl';
-import { Menu } from 'lucide-react';
+import { Menu, Loader2 } from 'lucide-react'; // เพิ่ม Loader2 สำหรับแสดงตอนโหลด
 import CCTVView from '@/components/dashboard/CCTVView';
 import DoorStatus from '@/components/dashboard/DoorStatus';
 import Sidebar from '@/components/ui/Sidebar';
@@ -17,16 +17,23 @@ import logo from '@/image/Logo.png';
 export default function DashboardPage() {
     const router = useRouter();
     const token = useAuthStore((state) => state.token);
-
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-    const { status, percentage, openDoor, closeDoor, stopDoor } = useDoorControl();
+    // ดึง isLoading มาเพิ่ม เพื่อใช้ล็อคปุ่มตอนรอ API
+    const { status, percentage, openDoor, closeDoor, stopDoor, isLoading } = useDoorControl();
 
     useEffect(() => {
         if (!token) {
             router.push('/login');
         }
     }, [token, router]);
+
+    // ตัวแปรเช็คสถานะการ Disable ปุ่ม (แยกออกมาให้อ่านง่าย)
+    // 1. ปุ่ม OPEN: ปิดเมื่อเปิดสุดแล้ว OR กำลังเปิด OR กำลังปิด (ต้อง STOP ก่อน) OR กำลังโหลด
+    const isOpenDisabled = status === 'OPEN' || status === 'OPENING' || status === 'CLOSING' || isLoading;
+
+    // 2. ปุ่ม CLOSE: ปิดเมื่อปิดสนิทแล้ว OR กำลังปิด OR กำลังเปิด (ต้อง STOP ก่อน) OR กำลังโหลด
+    const isCloseDisabled = status === 'CLOSED' || status === 'CLOSING' || status === 'OPENING' || isLoading;
 
     return (
         <div style={{
@@ -135,15 +142,15 @@ export default function DashboardPage() {
                         {/* OPEN Button */}
                         <button
                             onClick={openDoor}
-                            disabled={status === 'OPENING' || status === 'OPEN'}
+                            disabled={isOpenDisabled}
                             style={{
                                 width: '100%',
-                                backgroundColor: status === 'OPENING' || status === 'OPEN' ? '#d1d5db' : '#22c55e',
+                                backgroundColor: isOpenDisabled ? '#d1d5db' : '#22c55e',
                                 color: 'white',
                                 padding: '0.625rem',
                                 borderRadius: '0.5rem',
                                 border: 'none',
-                                cursor: status === 'OPENING' || status === 'OPEN' ? 'not-allowed' : 'pointer',
+                                cursor: isOpenDisabled ? 'not-allowed' : 'pointer',
                                 fontWeight: 'bold',
                                 fontSize: '0.9rem',
                                 marginBottom: '0.5rem',
@@ -153,7 +160,8 @@ export default function DashboardPage() {
                                 gap: '0.25rem'
                             }}
                         >
-                            ↑ OPEN/เปิด
+                            {isLoading && status === 'UNKNOWN' ? <Loader2 className="animate-spin w-4 h-4" /> : '↑'}
+                            OPEN/เปิด
                         </button>
 
                         {/* STOP Button */}
@@ -169,24 +177,29 @@ export default function DashboardPage() {
                                 cursor: 'pointer',
                                 fontWeight: 'bold',
                                 fontSize: '0.9rem',
-                                marginBottom: '0.5rem'
+                                marginBottom: '0.5rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.25rem'
                             }}
                         >
+                            {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : null}
                             STOP/หยุด
                         </button>
 
                         {/* CLOSE Button */}
                         <button
                             onClick={closeDoor}
-                            disabled={status === 'CLOSING' || status === 'CLOSED'}
+                            disabled={isCloseDisabled}
                             style={{
                                 width: '100%',
-                                backgroundColor: status === 'CLOSING' || status === 'CLOSED' ? '#d1d5db' : '#f59e0b',
+                                backgroundColor: isCloseDisabled ? '#d1d5db' : '#f59e0b',
                                 color: 'white',
                                 padding: '0.625rem',
                                 borderRadius: '0.5rem',
                                 border: 'none',
-                                cursor: status === 'CLOSING' || status === 'CLOSED' ? 'not-allowed' : 'pointer',
+                                cursor: isCloseDisabled ? 'not-allowed' : 'pointer',
                                 fontWeight: 'bold',
                                 fontSize: '0.9rem',
                                 display: 'flex',
@@ -195,7 +208,8 @@ export default function DashboardPage() {
                                 gap: '0.25rem'
                             }}
                         >
-                            ↓ CLOSE/ปิด
+                            {isLoading && status === 'UNKNOWN' ? <Loader2 className="animate-spin w-4 h-4" /> : '↓'}
+                            CLOSE/ปิด
                         </button>
                     </div>
                 </div>

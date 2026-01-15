@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuthStore } from '@/store/useAuthStore';
+import { AuthService } from '@/services/auth.service'; // เพิ่ม Import Service
 
 // Assets
 import desktopBg from '@/image/DesktopBG.png';
@@ -13,8 +14,9 @@ export default function LoginPage() {
     const router = useRouter();
     const setPhoneNumber = useAuthStore((state) => state.setPhoneNumber);
     const [inputPhone, setInputPhone] = useState('');
+    const [isLoading, setIsLoading] = useState(false); // เพิ่ม State Loading เพื่อกันกดซ้ำ
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Validate Phone (10 digits)
@@ -23,12 +25,27 @@ export default function LoginPage() {
             return;
         }
 
-        // Save to Store & Redirect
-        setPhoneNumber(inputPhone);
-        router.push('/otp');
+        try {
+            setIsLoading(true); // เริ่มโหลด
+
+            // 1. เรียก API ส่ง OTP จริง
+            // (ต้องมั่นใจว่าไฟล์ src/services/auth.service.ts สร้างเสร็จแล้วตามขั้นตอนก่อนหน้า)
+            await AuthService.sendOTP(inputPhone);
+
+            // 2. ถ้า API ผ่าน ให้เก็บเบอร์ลง Store แล้วไปหน้าถัดไป
+            setPhoneNumber(inputPhone);
+            router.push('/otp');
+
+        } catch (error) {
+            console.error('Login Error:', error);
+            // แจ้งเตือนเมื่อส่ง OTP ไม่ผ่าน
+            alert('ไม่สามารถส่ง OTP ได้ กรุณาตรวจสอบเบอร์โทรศัพท์ หรือการเชื่อมต่อ Server');
+        } finally {
+            setIsLoading(false); // หยุดโหลด
+        }
     };
 
-    // Styles
+    // Styles (เหมือนเดิมทุกประการ)
     const containerStyle: React.CSSProperties = {
         position: 'relative',
         minHeight: '100vh',
@@ -105,16 +122,17 @@ export default function LoginPage() {
 
     const buttonStyle: React.CSSProperties = {
         width: '100%',
-        backgroundColor: '#3b82f6',
+        backgroundColor: isLoading ? '#93c5fd' : '#3b82f6', // เปลี่ยนสีตอนโหลด
         color: 'white',
         fontWeight: '600',
         padding: '0.875rem',
         borderRadius: '9999px',
         border: 'none',
-        cursor: 'pointer',
+        cursor: isLoading ? 'not-allowed' : 'pointer', // ห้ามกดตอนโหลด
         fontSize: '1rem',
         marginTop: '1rem',
-        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35)'
+        boxShadow: '0 4px 12px rgba(59, 130, 246, 0.35)',
+        transition: 'background-color 0.2s'
     };
 
     return (
@@ -170,6 +188,7 @@ export default function LoginPage() {
                                 style={inputStyle}
                                 value={inputPhone}
                                 onChange={(e) => setInputPhone(e.target.value)}
+                                disabled={isLoading} // ล็อกช่องกรอกตอนโหลด
                                 suppressHydrationWarning
                             />
                             <p style={hintStyle}>
@@ -177,8 +196,8 @@ export default function LoginPage() {
                             </p>
                         </div>
 
-                        <button type="submit" style={buttonStyle}>
-                            ขอรหัส OTP
+                        <button type="submit" style={buttonStyle} disabled={isLoading}>
+                            {isLoading ? 'กำลังส่งข้อมูล...' : 'ขอรหัส OTP'}
                         </button>
                     </form>
                 </div>

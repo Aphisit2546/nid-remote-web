@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { X, Home, FileText, LogOut } from 'lucide-react';
+import { X, Home, FileText, LogOut, User } from 'lucide-react';
 import { useAuthStore } from '@/store/useAuthStore';
 
 interface SidebarProps {
@@ -38,6 +38,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     const menuItems = [
         { icon: Home, label: 'หน้าหลัก', path: '/dashboard' },
         { icon: FileText, label: 'จัดการข้อมูล / ประวัติ', path: '/history' },
+        { icon: User, label: 'โปรไฟล์', path: '/profile' },
     ];
 
     // ถ้าไม่เปิด ไม่ต้อง render อะไรเลย

@@ -2,21 +2,26 @@
 
 import { useState, useEffect } from 'react';
 
-// URL กล้องจาก Requirement
-const CCTV_URL = 'https://accessio.nidpro.tech/cctv.jpg';
-
 export default function CCTVView() {
-    const [imageUrl, setImageUrl] = useState(CCTV_URL);
+    // ดึง URL จาก .env แทนการ Hardcode
+    // (ถ้ายังไม่ได้ตั้งค่า ให้ไปที่ไฟล์ .env.local แล้วเพิ่มบรรทัด: NEXT_PUBLIC_CCTV_URL=https://accessio.nidpro.tech/cctv.jpg)
+    const cctvUrl = process.env.NEXT_PUBLIC_CCTV_URL || '';
+
+    const [imageUrl, setImageUrl] = useState(cctvUrl);
     const [error, setError] = useState(false);
 
     useEffect(() => {
+        if (!cctvUrl) return; // ถ้าไม่มี URL ไม่ต้องทำงาน
+
         const updateImage = () => {
-            setImageUrl(`${CCTV_URL}?t=${Date.now()}`);
+            // เติม timestamp เพื่อบังคับโหลดภาพใหม่ (กัน Cache)
+            setImageUrl(`${cctvUrl}?t=${Date.now()}`);
         };
 
+        // Refresh ทุก 0.5 วินาที
         const intervalId = setInterval(updateImage, 500);
         return () => clearInterval(intervalId);
-    }, []);
+    }, [cctvUrl]);
 
     return (
         <div style={{
@@ -27,7 +32,7 @@ export default function CCTVView() {
             overflow: 'hidden',
             position: 'relative'
         }}>
-            {!error ? (
+            {!error && cctvUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                     src={imageUrl}
@@ -47,9 +52,12 @@ export default function CCTVView() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#6b7280',
-                    backgroundColor: '#e5e7eb'
+                    backgroundColor: '#e5e7eb',
+                    flexDirection: 'column',
+                    gap: '0.5rem'
                 }}>
-                    <p>ไม่สามารถเชื่อมต่อกล้องได้</p>
+                    <p style={{ margin: 0 }}>ไม่สามารถเชื่อมต่อกล้องได้</p>
+                    {!cctvUrl && <p style={{ fontSize: '0.7rem', color: '#ef4444' }}>(ไม่พบ URL กล้องใน .env)</p>}
                 </div>
             )}
 

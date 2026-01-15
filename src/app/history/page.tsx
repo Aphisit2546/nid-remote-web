@@ -127,7 +127,7 @@ export default function HistoryPage() {
                     }}>
                         {/* ปุ่ม 1: ประวัติการใช้งานระบบ */}
                         <button
-                            onClick={() => alert('Feature นี้กำลังพัฒนา (System Log)')}
+                            onClick={() => router.push('/history/System')}
                             style={{
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -186,7 +186,7 @@ export default function HistoryPage() {
 
                         {/* ปุ่ม 2: ประวัติการใช้งานประตู */}
                         <button
-                            onClick={() => alert('Feature นี้กำลังพัฒนา (Door Log)')}
+                            onClick={() => router.push('/history/door')}
                             style={{
                                 display: 'flex',
                                 flexDirection: 'column',
